@@ -39,6 +39,7 @@ app = Flask(__name__)
 def qa():
   data = request.json
   question = data["question"]
+  print(question)
   with get_openai_callback() as cb:
     response = chain({"question": question}, return_only_outputs=True)
     print(cb)
