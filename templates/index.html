@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SenseiLibrary Q&A</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: auto;
+        }
+
+        .spinner {
+        border: 4px solid rgba(0, 0, 0, 0.1);
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border-left-color: #09f;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+    </style>
+</head>
+<body>
+    <h1>SenseiLibrary Q&A</h1>
+    <form id="qa-form">
+        <label for="question">Question:</label>
+        <input type="text" id="question" name="question" required>
+        <button type="submit">Ask</button>
+    </form>
+    <h2>Answer</h2>
+    <p id="answer"></p>
+    <h2>Sources</h2>
+    <p id="sources"></p>
+
+    <script>
+        document.getElementById('qa-form').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const spinner = document.getElementById('spinner');
+            const question = document.getElementById('question').value;
+
+            spinner.style.display = 'block';
+
+            const response = await fetch('/qa', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ question: question })
+            });
+
+            const data = await response.json();
+            document.getElementById('answer').innerText = data.answer;
+
+            const sourcesList = document.createElement('ul');
+            const sourcesArray = data.sources.split(', ');
+
+            for (const source of sourcesArray) {
+                const listItem = document.createElement('li');
+                const link = document.createElement('a');
+                link.href = source;
+                link.target = '_blank';
+                link.innerText = source;
+                listItem.appendChild(link);
+                sourcesList.appendChild(listItem);
+            }
+
+            const sourcesContainer = document.getElementById('sources');
+            sourcesContainer.innerHTML = '';
+            sourcesContainer.appendChild(sourcesList);
+
+            spinner.style.display = 'none';
+        });
+
+    </script>
+    <div id="spinner" class="spinner" style="display: none;"></div>
+</body>
+</html>
