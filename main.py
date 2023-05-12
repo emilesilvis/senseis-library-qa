@@ -4,17 +4,24 @@ from langchain.chains import RetrievalQAWithSourcesChain
 from langchain.llms import OpenAI
 from langchain.callbacks import get_openai_callback
 import os
+import logging
 from flask import Flask, request, jsonify, render_template
+from flask.logging import default_handler
+
+# Configure the logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+logger.addHandler(default_handler)
 
 embeddings = OpenAIEmbeddings()
 
 index_name = os.environ['PINECONE_INDEX_NAME']
-print(index_name)
+logger.info(index_name)
 docsearch = Pinecone.from_existing_index(index_name, embeddings)
 
 retriever = docsearch.as_retriever()
 
-chain = RetrievalQAWithSourcesChain.from_chain_type(OpenAI(temperature=0),
+chain = RetrievalQAWithSourcesChain.from_chain_type(OpenAI(model_name="gpt-4"),
                                                     chain_type="stuff",
                                                     retriever=retriever)
 
@@ -39,10 +46,10 @@ app = Flask(__name__)
 def qa():
   data = request.json
   question = data["question"]
-  print(question)
+  logger.info(question)
   with get_openai_callback() as cb:
     response = chain({"question": question}, return_only_outputs=True)
-    print(cb)
+    logger.info(cb)
     response['sources'] = transform_source_paths(response['sources'])
     return jsonify(response)
 
