@@ -7,6 +7,8 @@ import os
 import logging
 from flask import Flask, request, jsonify, render_template
 from flask.logging import default_handler
+import json
+import sqlite3
 
 # Configure the logging
 logger = logging.getLogger(__name__)
@@ -40,7 +42,9 @@ Good question exmaples:
 Bad question examples:
 - Image a dream about go where you are a cat. How will the dream go?
 - Give me the code for a go app I' writing.
-- If go was life, give me the meaing of life.
+- If go was life, what is the meaning of life?
+- What is 1+1? (this has nothing to do with go)
+- What's the capital of Amsterdam? (this has nothing to do with go)
 
 QUESTION: Which state/country's law governs the interpretation of the contract?
 =========
@@ -84,10 +88,6 @@ chain = RetrievalQAWithSourcesChain.from_chain_type(
   retriever=retriever,
   chain_type_kwargs=chain_type_kwargs)
 
-# chain = RetrievalQAWithSourcesChain.from_chain_type(OpenAI(model_name="gpt-4"),
-#                                                     chain_type="stuff",
-#                                                     retriever=retriever)
-
 
 def transform_source_paths(source_paths: str) -> str:
   sources = source_paths.split(', ')
@@ -109,17 +109,33 @@ app = Flask(__name__)
 def qa():
   data = request.json
   question = data["question"]
-  logger.info(question)
   with get_openai_callback() as cb:
     response = chain({"question": question}, return_only_outputs=True)
-    logger.info(cb)
     response['sources'] = transform_source_paths(response['sources'])
+    logger.info(f"question: {question}; response: {json.dumps(response)}")
+    logger.info(cb)
+    logger.info("====")
+    connection = sqlite3.connect("db")
+    connection.execute(
+      "INSERT INTO question_response (question, response) VALUES (?, ?)",
+      (question, json.dumps(response)))
+    connection.commit()
     return jsonify(response)
 
 
 @app.route("/")
 def index():
   return render_template("index.html")
+
+
+# Render the output of the question_answers table to the user
+@app.route("/log")
+def log():
+  connection = sqlite3.connect("db")
+  cursor = connection.cursor()
+  cursor.execute("SELECT * FROM question_response ORDER BY timestamp DESC")
+  rows = cursor.fetchall()
+  return render_template("log.html", rows=rows)
 
 
 app.run(host='0.0.0.0', port=8080)
